@@ -53,13 +53,11 @@ class DashDownloader:
     def _get_m4s(self, url: str, base: str, _type=0) -> None:
         if _type > 2:
             raise Exception("Invalid type : %s - Use : 0 -> video, 1 -> audio ")
-        output_dir: str = Config.OUTPUT_AUDIO
+        output_dir: str = Config.OUTPUT_AUDIO if _type != 0 else Config.OUTPUT_VIDEO
+        r = Utils.send_request(self._init_video_url if _type == 0 else self._init_audio_url)
         if _type == 0:
-            output_dir = Config.OUTPUT_VIDEO
-            r = Utils.send_request(self._init_video_url)
             self._init_video_path = Utils.create_path(Config.OUTPUT_MERGED, "video.dash")
         else:
-            r = Utils.send_request(self._init_audio_url)
             self._init_audio_path = Utils.create_path(Config.OUTPUT_MERGED, "audio.dash")
         with open(self._init_audio_path if _type != 0 else self._init_video_path, self._WRITE_MODE) as wF:
             wF.write(r.content)
