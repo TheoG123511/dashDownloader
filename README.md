@@ -1,3 +1,3 @@
 # Dash Downloader
 
-- This tools is for download video on web
+- download video using dash protocol to mp4
