@@ -5,6 +5,7 @@ try:
     import shutil
     import errno
     import stat
+    from utils.Exception import StatusCodeError
 except ImportError:
     raise ImportError
 
@@ -18,8 +19,8 @@ class Utils:
     @staticmethod
     def _file_walker(directory: str) -> list:
         file_list: list = []
-        for i in range(1, len(os.listdir(directory))):
-            file_list.append("%s%s.m4s" % (directory, i))
+        for i in range(1, len(os.listdir(directory)) + 1):
+            file_list.append(Utils.create_path(directory, "%s.m4s" % i))
         return file_list
 
     @staticmethod
@@ -28,51 +29,57 @@ class Utils:
             with open(output_path, "wb") as wF:
                 with open(init_mp4_path, "rb") as rF:
                     wF.write(rF.read())
-                for item in m4s_path:
-                    with open(item, "rb") as rF:
-                        wF.write(rF.read())
+                for item in Utils._file_walker(m4s_path):
+                    if Utils.exist(item):
+                        with open(item, "rb") as rF:
+                            wF.write(rF.read())
         except (PermissionError, OSError, FileNotFoundError, FileExistsError) as err:
             raise err
         return True
 
     @staticmethod
     def convert_to_mp4(audio_path: str, video_path: str, output: str) -> bool or Exception:
-        p = subprocess.Popen(
-            'ffmpeg -i %s -i %s -codec copy %s' % (audio_path, video_path, output), stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, shell=True
+        p = subprocess.call(
+            'ffmpeg -i %s -i %s -codec copy %s' % (audio_path, video_path, output),
+            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        stdout, stderr = p.communicate()
-        if len(stderr):
-            raise Exception("ffmpeg is not installed or file path is wrong !")
+        if bool(p):
+            raise Exception("ffmpeg is not installed or file path is wrong or ffmpeg error!")
         return True
 
     @staticmethod
-    def send_request(url: str) -> requests.Request or Exception:
+    def send_request(url: str) -> requests.Request or StatusCodeError:
         r = requests.get(url)
         if r.status_code != 200:
-            raise Exception("Error bad status code : %s" % r.status_code)
+            raise StatusCodeError("Error bad status code : %s" % r.status_code)
         return r
 
     @staticmethod
-    def delete_repertory(directoryPath: str) -> None:
+    def delete(_path: str) -> None:
         """
-        Permet de supprimer un repertoire
-        :param directoryPath: Le chemin d'acces vers le repertoire
-        :type directoryPath: str
+        Permet de supprimer un repertoire ou un fichier
+        :param _path: Le chemin d'acces vers le repertoire
+        :type _path: str
         """
-        if os.path.exists(directoryPath):
+        if os.path.exists(_path):
+            if os.path.isfile(_path):
+                try:
+                    os.chmod(_path, 0o777)
+                    os.remove(_path)
+                except (FileNotFoundError, OSError, PermissionError) as err:
+                    raise err
             # on supprime tous les fichier dans le repertoire
-            for root, dirs, files in os.walk(directoryPath):
+            for root, dirs, files in os.walk(_path):
                 # on parcours la liste des fichier du repertoire
                 for file in files:
                     filePath = os.path.join(root, file)
                     try:
                         os.chmod(filePath, 0o777)
                         os.remove(filePath)
-                    except FileNotFoundError:
+                    except (FileNotFoundError, OSError, PermissionError):
                         continue
             # on supprime tous ce qui reste
-            shutil.rmtree(directoryPath, ignore_errors=True, onerror=Utils.handleRemoveReadonly)
+            shutil.rmtree(_path, ignore_errors=True, onerror=Utils.handleRemoveReadonly)
 
     @staticmethod
     def handleRemoveReadonly(func, path: str, exc):
@@ -101,3 +108,26 @@ class Utils:
         except (PermissionError, OSError, FileNotFoundError, FileExistsError) as err:
             raise err
         return True
+
+    @staticmethod
+    def exist(file_path: str) -> bool: return os.path.exists(file_path)
+
+
+if __name__ == '__main__':
+    """Utils.combine(
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\audio",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\audio.mp4",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\audio.dash"
+    )
+    Utils.combine(
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\video",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\video.mp4",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\video.dash"
+    )"""
+    """Utils.delete("C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\myVideo.mp4")
+    Utils.convert_to_mp4(
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\audio.mp4",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\merged\\video.mp4",
+        "C:\\Users\\theo\\PycharmProjects\\dashDownloader\\output\\myVideo.mp4"
+    )"""
+    pass

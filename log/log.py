@@ -37,7 +37,7 @@ class Logging(metaclass=Singleton):
                 with open(Config.LOG_FILE_PATH, "w"):
                     pass
             except (FileNotFoundError, OSError, PermissionError) as err:
-                print("[%s] Unable to create log file :: %s" % (self.__class__.__name__, err))
+                raise Exception("[%s] Unable to create log file :: %s" % (self.__class__.__name__, err))
         self._fileHandler = RotatingFileHandler(Config.LOG_FILE_PATH, 'a')
         self._fileHandler.setLevel(logging.INFO)
         self._fileHandler.setFormatter(self._formatter)
